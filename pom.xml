@@ -7,6 +7,11 @@
     <version>1.0-SNAPSHOT</version>
 
     <name>Spring-Zookeeper Integration</name>
+    <parent>
+        <groupId>com.aro</groupId>
+        <artifactId>root-pom</artifactId>
+        <version>4.0</version>
+    </parent>
 
     <dependencies>
         <dependency>
