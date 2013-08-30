@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>spring-zookeeper</groupId>
     <artifactId>spring-zookeeper</artifactId>
-    <version>0.1</version>
+    <version>0.2-SNAPSHOT</version>
 
     <name>Spring-Zookeeper Integration</name>
     <parent>
