@@ -26,4 +26,11 @@
         </dependency>
     </dependencies>
 
+    <scm>
+        <url>scm:git:git@github.com:bellwethr/spring-zookeeper.git</url>
+        <connection>scm:git:git@github.com:bellwethr/spring-zookeeper.git</connection>
+        <developerConnection>scm:git:git@github.com:bellwethr/spring-zookeeper.git</developerConnection>
+    </scm>
+
+
 </project>

@@ -15,7 +15,13 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.Exception;import java.lang.IllegalStateException;import java.lang.Object;import java.lang.RuntimeException;import java.lang.String;import java.lang.System;import java.util.Properties;
+import java.lang.Exception;
+import java.lang.IllegalStateException;
+import java.lang.Object;
+import java.lang.RuntimeException;
+import java.lang.String;
+import java.lang.System;
+import java.util.Properties;
 
 public class SpringZookeeperUtils {
 
@@ -34,6 +40,7 @@ public class SpringZookeeperUtils {
     private String projectArtifactId;
     private String projectVersion;
     private Logger logger;
+
 
     //-------------------------------------------------------------
     // Constructors
@@ -60,18 +67,29 @@ public class SpringZookeeperUtils {
 
     public static void main(String args[]) throws Exception {
         System.getProperties().setProperty("zookeeper.connect", "localhost:2181");
-        System.getProperties().setProperty("environment", "local");
+        System.getProperties().setProperty("environment", "dev0");
 
         SpringZookeeperUtils zookeeperUtils = new SpringZookeeperUtils();
 
+
         Properties props = new Properties();
         props.put("foo", "bar");
-        props.put("messaging.kafka.brokerList","zookeeper_injected_brokerlist");
-        props.put("messaging.zookeeper.nodeList","zookeeper_injected_nodelist");
-        zookeeperUtils.publishProperties(props);
-        Properties loadedProps = zookeeperUtils.loadProperties();
+        props.put("messaging.kafka.brokerList", "persist0.dev0.aro.com:9092");
+        props.put("messaging.zookeeper.nodeList", "zookeeper5.dev0.aro.com:2181");
+        String path =  "/config/dev0/dmp/0.4-SNAPSHOT";
+        zookeeperUtils.publishPropertiesForPath(props, path);
+
+
+        Properties loadedProps = zookeeperUtils.loadPropertiesForPath(path);
         for (Object key : loadedProps.keySet()) {
             System.out.println("key: " + key + ", value: " + loadedProps.get(key));
+        }
+        zookeeperUtils.shutdown();
+    }
+
+    private void shutdown() {
+        if (curator != null && curator.isStarted()) {
+            curator.close();
         }
     }
 
@@ -80,12 +98,9 @@ public class SpringZookeeperUtils {
     // Methods - Public
     //-------------------------------------------------------------
 
-    public void publishProperties(Properties propertiesToPublish) {
+    public void publishPropertiesForPath(Properties propertiesToPublish, String path) {
         ByteArrayOutputStream baos = null;
-
         try {
-            populateProjectProperties();
-            String path = "/config/" + environment + "/" + projectArtifactId + "/" + projectVersion;
             Stat exists = curator.checkExists().forPath(path);
             if (exists == null) {
                 curator.create().creatingParentsIfNeeded().forPath(path);
@@ -93,7 +108,7 @@ public class SpringZookeeperUtils {
 
             baos = new ByteArrayOutputStream();
             propertiesToPublish.store(baos, null);
-            curator.setData().forPath("/config/" + environment + "/" + projectArtifactId + "/" + projectVersion, baos.toByteArray());
+            curator.setData().forPath(path, baos.toByteArray());
         } catch (IOException ie) {
             logger.error("Could not publish properties to Zookeeper", ie);
         } catch (Exception e) {
@@ -110,13 +125,24 @@ public class SpringZookeeperUtils {
     }
 
 
+    public void publishProperties(Properties propertiesToPublish) {
+        try {
+            populateProjectProperties();
+            String path = String.format("/config/%s/%s/%s", environment, projectArtifactId, projectVersion);
+            publishPropertiesForPath(propertiesToPublish, path);
+        } catch (IOException ie) {
+            logger.error("Could not publish properties to Zookeeper", ie);
+        }
+    }
+
+
     public Properties loadProperties() {
         logger.trace("Attempting to fetch properties from zookeeper");
 
         try {
             populateProjectProperties();
-            Properties properties = populatePropertiesFromZooKeeper();
-            return properties;
+            String path = String.format("/config/%s/%s/%s", environment, projectArtifactId, projectVersion);
+            return loadPropertiesForPath(path);
         } catch (IOException e) {
             logger.error("IO error attempting to load properties from ZooKeeper", e);
             throw new IllegalStateException("Could not load ZooKeeper configuration");
@@ -124,6 +150,16 @@ public class SpringZookeeperUtils {
             logger.error("Error attempting to load properties from ZooKeeper", e);
             throw new IllegalStateException("Could not load properties from ZooKeeper", e);
         }
+    }
+
+    public Properties loadPropertiesForPath(String path) {
+        Properties properties = null;
+        try {
+            properties = retrievePropertiesFromZooKeeper(path);
+        } catch (Exception e) {
+            logger.error("Error attempting to load properties from Zookeeper", e);
+        }
+        return properties;
     }
 
 
@@ -139,6 +175,7 @@ public class SpringZookeeperUtils {
     //-------------------------------------------------------------
     // Methods - Private
     //-------------------------------------------------------------
+
 
     /**
      * Populate the Maven artifact name and version from a property file that
@@ -163,28 +200,28 @@ public class SpringZookeeperUtils {
     /**
      * Do the actual loading of properties.
      *
+     * @param path
      * @return
      * @throws Exception
      * @throws IOException
      */
-    private Properties populatePropertiesFromZooKeeper() throws Exception, IOException {
+    private Properties retrievePropertiesFromZooKeeper(String path) throws Exception, IOException {
         logger.debug("Attempting to get properties from ZooKeeper");
         InputStream in = null;
         try {
-            String path = "/config/" + environment + "/" + projectArtifactId + "/" + projectVersion;
             Stat exists = curator.checkExists().forPath(path);
             if (exists == null) {
                 curator.create().creatingParentsIfNeeded().forPath(path);
                 return new Properties();
             }
             byte[] bytes = curator.getData().forPath(path);
+            String foo = new String(bytes);
             in = new ByteArrayInputStream(bytes);
             Properties properties = new Properties();
             properties.load(in);
 
             return properties;
         } catch (KeeperException.NoNodeException e) {
-
             logger.error(String.format("Could not load application configuration from ZooKeeper as no node existed for /config/%s/%s/%s", environment, projectArtifactId, projectVersion));
             throw e;
         } finally {
