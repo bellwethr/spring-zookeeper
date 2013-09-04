@@ -24,8 +24,8 @@ import java.lang.System;
 import java.util.Properties;
 
 public class SpringZookeeperUtils {
-    public static final String ZOOKEEPER_CONNECT = "zookeeper.connect";
-    public static final String ENVIRONMENT_SCOPE = "environment";
+    public static final String ZOOKEEPER_CONNECT = "ZOOKEEPER_CONNECT";
+    public static final String ZOOKEEPER_ENVIRONMENT = "ZOOKEEPER_ENVIRONMENT";
 
 
     //-------------------------------------------------------------
@@ -51,7 +51,7 @@ public class SpringZookeeperUtils {
 
     public SpringZookeeperUtils() throws IOException {
         String zkConnectString = System.getProperty(ZOOKEEPER_CONNECT);
-        environment = System.getProperty(ENVIRONMENT_SCOPE);
+        environment = System.getProperty(ZOOKEEPER_ENVIRONMENT);
         logger = LoggerFactory.getLogger(SpringZookeeperUtils.class);
 
         if (zkConnectString == null || environment == null) {
