@@ -32,7 +32,7 @@ public class SpringZookeeperUtils {
     // Constants
     //-------------------------------------------------------------
 
-    private final CuratorFramework curator;
+    private CuratorFramework curator = null;
 
 
     //-------------------------------------------------------------
@@ -53,10 +53,13 @@ public class SpringZookeeperUtils {
         String zkConnectString = System.getProperty(ZOOKEEPER_CONNECT);
         environment = System.getProperty(ZOOKEEPER_ENVIRONMENT);
         logger = LoggerFactory.getLogger(SpringZookeeperUtils.class);
+        logger.info(String.format("zkConnectString: %s, environment: %s", zkConnectString, environment));
 
         if (zkConnectString == null || environment == null) {
-            throw new RuntimeException(String.format("'zookeeper.connect' (%s) or 'environment' (%s) is not set as a system property", zkConnectString, environment));
+            logger.info("Not initialized, will not act as a property source");
+            return;
         }
+
         logger.info("Attempting to construct CuratorFramework instance");
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(10, 100);
         curator = CuratorFrameworkFactory.newClient(zkConnectString, retryPolicy);
@@ -79,7 +82,7 @@ public class SpringZookeeperUtils {
         props.put("foo", "bar");
         props.put("messaging.kafka.brokerList", "persist0.dev0.aro.com:9092");
         props.put("messaging.zookeeper.nodeList", "zookeeper5.dev0.aro.com:2181");
-        String path =  "/config/dev0/dmp/0.4-SNAPSHOT";
+        String path = "/config/dev0/dmp/0.4-SNAPSHOT";
         zookeeperUtils.publishPropertiesForPath(props, path);
 
 
@@ -103,6 +106,10 @@ public class SpringZookeeperUtils {
 
     public void publishPropertiesForPath(Properties propertiesToPublish, String path) {
         ByteArrayOutputStream baos = null;
+        if (curator == null) {
+            return;
+        }
+
         try {
             Stat exists = curator.checkExists().forPath(path);
             if (exists == null) {
@@ -140,6 +147,9 @@ public class SpringZookeeperUtils {
 
 
     public Properties loadProperties() {
+        if (curator == null) {
+            return new Properties();
+        }
         logger.trace("Attempting to fetch properties from zookeeper");
 
         try {
